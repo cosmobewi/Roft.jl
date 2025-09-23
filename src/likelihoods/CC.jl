@@ -1,6 +1,7 @@
 module CC
 export CCData, chi2_cc
 
+using LinearAlgebra: dot
 using ..Backgrounds: FlatLCDM, H_of_z
 using ..ROFTSoft
 
@@ -10,16 +11,20 @@ Base.@kwdef struct CCData
     sigH::Vector{Float64}
 end
 
-function chi2_cc(D::CCData; bg::FlatLCDM, roft::ROFTSoft.ROFTParams)
-    @assert length(D.z)==length(D.H)==length(D.sigH)
-    s = 0.0
-    for i in eachindex(D.z)
-        Hgeo = H_of_z(bg, D.z[i])
-        Hth  = ROFTSoft.modify_CC(Hgeo, D.z[i], roft; Om0=bg.Om0, Or0=bg.Or0)
-        r    = (D.H[i] - Hth)/D.sigH[i]
-        s   += r*r
-    end
-    return s
+"""
+    chi2_cc(data; bg, roft)
+
+Gaussian χ² for cosmic chronometer data with ROFT soft corrections applied to
+the background expansion.
+"""
+function chi2_cc(data::CCData; bg::FlatLCDM, roft::ROFTSoft.ROFTParams)
+    @assert length(data.z) == length(data.H) == length(data.sigH)
+
+    H_geo = H_of_z.(Ref(bg), data.z)
+    H_th  = ROFTSoft.modify_CC.(H_geo, data.z, Ref(roft);
+                                Om0=bg.Om0, Or0=bg.Or0)
+    r     = (data.H .- H_th) ./ data.sigH
+    return dot(r, r)
 end
 
 end

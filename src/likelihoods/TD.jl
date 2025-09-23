@@ -1,6 +1,7 @@
 module TD
 export TDData, chi2_td
 
+using LinearAlgebra: dot
 using ..Backgrounds: FlatLCDM
 using ..ROFTSoft
 
@@ -12,16 +13,19 @@ Base.@kwdef struct TDData
     sigH0::Vector{Float64}
 end
 
-function chi2_td(D::TDData; bg::FlatLCDM, roft::ROFTSoft.ROFTParams)
-    n = length(D.H0inf)
-    @assert n==length(D.zl)==length(D.zs)==length(D.eta)==length(D.sigH0)
-    s = 0.0
-    for i in 1:n
-        H0th = ROFTSoft.modify_TD(bg.H0, D.zl[i], D.zs[i], D.eta[i], roft; Om0=bg.Om0, Or0=bg.Or0)
-        r    = (D.H0inf[i] - H0th)/D.sigH0[i]
-        s   += r*r
-    end
-    return s
+"""
+    chi2_td(data; bg, roft)
+
+Gaussian χ² for time-delay cosmography inference with ROFT soft scaling of H₀.
+"""
+function chi2_td(data::TDData; bg::FlatLCDM, roft::ROFTSoft.ROFTParams)
+    n = length(data.H0inf)
+    @assert n == length(data.zl) == length(data.zs) == length(data.eta) == length(data.sigH0)
+
+    H0_th = ROFTSoft.modify_TD.(bg.H0, data.zl, data.zs, data.eta, Ref(roft);
+                                Om0=bg.Om0, Or0=bg.Or0)
+    r     = (data.H0inf .- H0_th) ./ data.sigH0
+    return dot(r, r)
 end
 
 end

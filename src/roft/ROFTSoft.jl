@@ -1,13 +1,12 @@
 module ROFTSoft
 export ROFTParams, delta_g_time, modify_CC, modify_TD, delta_mu_host
 
+using ..Backgrounds: E_LCDM
+
 Base.@kwdef struct ROFTParams
     alpha::Float64 = 0.0
     variant::Symbol = :energy   # :energy => Δg=2α ln E ; :thermal => Δg=α ln(1+z)
 end
-
-@inline E_LCDM(z; Om0, Or0=0.0, Ol0=1-Om0-Or0) =
-    sqrt(Or0*(1+z)^4 + Om0*(1+z)^3 + Ol0)
 
 @inline function delta_g_time(p::ROFTParams, z; Om0, Or0=0.0, Ol0=1-Om0-Or0)
     p.variant === :energy  && return 2p.alpha*log(E_LCDM(z; Om0=Om0, Or0=Or0, Ol0=Ol0))
