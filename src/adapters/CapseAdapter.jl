@@ -15,16 +15,18 @@ Base.@kwdef struct CapseCMB
 end
 
 struct CapseState
-    emulator::Capse.CℓEmulator
+    emulator::Any
     ℓ::Vector{Int}
     param_order::Vector{Symbol}
 end
 
 function load_capse(weights_dir::AbstractString;
                     param_order::Vector{Symbol}=Symbol[:ωb,:ωc,:h,:ns,:τ,:As])
+    env_order = get(ENV, "CAPSE_PARAM_ORDER", "")
+    order = !isempty(env_order) ? Symbol.(split(env_order, ',')) : param_order
     emu = Capse.load_emulator(weights_dir)
     ℓ = collect(Capse.get_ℓgrid(emu))
-    return CapseState(emu, ℓ, param_order)
+    return CapseState(emu, ℓ, order)
 end
 
 function load_capse_from_env(; envvar::AbstractString="CAPSE_WEIGHTS",

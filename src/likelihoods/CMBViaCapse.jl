@@ -70,8 +70,8 @@ function load_cmb_data(data_csv::AbstractString, cov_csv::AbstractString;
     ell = collect(Int.(dfD.ell[m]))
     yTT = Float64.(dfD[m, TTcol])
 
-    dfC = CSV.read(cov_csv, DataFrame; delim=',', ignorerepeated=true)
-    C = Matrix(_df_to_float_matrix(dfC))
+    dfC = CSV.read(cov_csv, DataFrame; delim=',', ignorerepeated=true, header=false)
+    C = _df_to_float_matrix(dfC)
 
     Ndata = length(yTT)
     if size(C,1) != Ndata || size(C,2) != Ndata
@@ -117,7 +117,17 @@ function chi2_cmb_soft_at(H0::Real, Om0::Real, cmb::CMBData, model::CapseCMBMode
     Och2 = Om0*(H0/100)^2 - Obh2 - Onuh2
 
     p = CapseAdapter.CapseCMB(Obh2=Obh2, Och2=Och2, H0=H0, ns=ns, As=As, tau=tau)
-    thTT = CapseAdapter.predict_cmb(p, model.wTT)   # Dℓ sur la même grille ℓ
+    thTT = CapseAdapter.predict_cmb(p, model.wTT)   # théorie (Cℓ ou Dℓ suivant l'émulateur)
+
+    if model.as_Dell_theory != cmb.as_Dell
+        ℓ = model.ell
+        fac = @. (ℓ * (ℓ + 1)) / (2pi)
+        if !model.as_Dell_theory && cmb.as_Dell
+            thTT = fac .* thTT
+        elseif model.as_Dell_theory && !cmb.as_Dell
+            thTT = thTT ./ fac
+        end
+    end
 
     r = cmb.vec .- thTT
     return dot(r, cmb.Cov \ r)

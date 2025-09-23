@@ -130,6 +130,81 @@ end
         M = Roft.meff_from_meta(0.1, :energy, obs.zl, obs.zs, obs.eta, obs.w, E)
         @test M > 0
     end
+
+    @testset "CapseAdapter" begin
+        import Capse
+        @eval Capse begin
+            struct DummyEmulator
+                ℓ::Vector{Int}
+                response::Matrix{Float64}
+            end
+            get_ℓgrid(emu::DummyEmulator) = emu.ℓ
+            get_Cℓ(x::AbstractVector{<:Real}, emu::DummyEmulator) = emu.response * collect(x)
+        end
+
+        ℓ = [10, 20]
+        resp = [1.0 0.0 0.0 0.0 0.0 0.0;
+                0.0 1.0 0.0 0.0 0.0 0.0]
+        st = Roft.CapseAdapter.CapseState(Capse.DummyEmulator(ℓ, resp), ℓ, [:ωb, :ωc, :h, :ns, :τ, :As])
+        @test st.ℓ == [10, 20]
+        @test st.param_order == [:ωb, :ωc, :h, :ns, :τ, :As]
+
+        p = Roft.CapseAdapter.CapseCMB(Obh2=0.022, Och2=0.12, H0=70.0, ns=0.96, As=2.1e-9, tau=0.054)
+        vec = Roft.CapseAdapter._param_vector(p, st.param_order)
+        @test vec ≈ [0.022, 0.12, 0.7, 0.96, 0.054, 2.1e-9]
+
+        th = Roft.CapseAdapter.predict_cmb(p, st)
+        @test th ≈ [0.022, 0.12]
+
+        data_vec = th .+ [0.5, -1.0]
+        cov = Symmetric(Matrix{Float64}(I, 2, 2))
+        @test Roft.CapseAdapter.cmb_chi2(data_vec, cov, p, st) ≈ 0.5^2 + (-1.0)^2
+
+        tmp = mktempdir()
+        data_csv = joinpath(tmp, "cmb.csv")
+        cov_csv  = joinpath(tmp, "cmb_cov.csv")
+        open(data_csv, "w") do io
+            println(io, "ell,TT")
+            println(io, "10,100.0")
+            println(io, "20,110.0")
+        end
+        open(cov_csv, "w") do io
+            println(io, "1.0,0.0")
+            println(io, "0.0,1.0")
+        end
+        cmb_data = Roft.CMBViaCapse.load_cmb_data(data_csv, cov_csv; ell_min=5, ell_max=30)
+        @test cmb_data.ell == [10, 20]
+        @test cmb_data.blocks == [:TT]
+
+        model = Roft.CMBViaCapse.CapseCMBModel(blocks=[:TT], as_Dell_theory=true,
+                                               wTT=st, wTE=nothing, wEE=nothing, ell=ℓ)
+        Roft.CMBViaCapse.align_data_to_ell!(cmb_data, model.ell)
+        @test model.ell == [10, 20]
+        @test cmb_data.ell == [10, 20]
+
+        parms = Dict("CAPSE_NS"=>"0.96", "CAPSE_AS"=>"2.1e-9", "CAPSE_TAU"=>"0.054",
+                     "CAPSE_OBH2"=>"0.022", "CAPSE_ONUH2"=>"0.00064")
+        saved = Dict{String,Union{Nothing,String}}()
+        for (k,v) in parms
+            saved[k] = get(ENV, k, nothing)
+            ENV[k] = v
+        end
+
+        cmb_data.vec = th .+ [0.2, -0.3]
+        cmb_data.Cov = Symmetric(Matrix{Float64}(I, 2, 2))
+        H0 = 70.0
+        Om0 = 0.3
+        chi2 = Roft.CMBViaCapse.chi2_cmb_soft_at(H0, Om0, cmb_data, model)
+        @test isapprox(chi2, 0.2^2 + (-0.3)^2; atol=5e-3)
+
+        for (k, val) in saved
+            if val === nothing
+                delete!(ENV, k)
+            else
+                ENV[k] = val
+            end
+        end
+    end
 end
 
 @testset "Likelihoods" begin
