@@ -63,3 +63,23 @@ Documentation détaillée : voir `docs/cmb.md`.
 
 ---
 Voir également `docs/cmb.md` pour les détails CMB/Capse.
+
+## 8. Données externes (Makefile)
+
+Un `Makefile` fournit une cible `init` téléchargeant/clonant les sources requises sous `/opt/` :
+
+
+```
+make init
+```
+
+Cette commande crée les dossiers et récupère :
+
+- `/opt/DataRelease` : `PantheonPlusSH0ES/DataRelease` (SNe + covariances).
+- `/opt/H0LiCOW` : `shsuyu/H0LiCOW-public` (chaînes, métadonnées).
+- `/opt/CCcovariance` : `mmoresco/CCcovariance` (données CC + MM20).
+- `/opt/Capse` : `CosmologicalEmulators/Capse.jl` (sources émulateur).
+- `/opt/planck/COM_Likelihood_Data-baseline_R3.00` : archive Planck téléchargée depuis la PLA (`COSMOLOGY_OID=151902`).
+- `/opt/trained_emu` : poids Capse (Zenodo `trained_emu.tar.gz`).
+
+Vous pouvez pointer les variables d’environnement (`CAPSE_WEIGHTS_DIR=/opt/trained_emu`, `CC_DIR=/opt/CCcovariance/data`, etc.) directement sur ces dossiers.
