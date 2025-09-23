@@ -10,6 +10,7 @@ Base.@kwdef mutable struct CMBData
     vec::Vector{Float64}
     Cov::Symmetric{Float64,Matrix{Float64}}
     blocks::Vector{Symbol}
+    block_ranges::Dict{Symbol,UnitRange{Int}}
     as_Dell::Bool
 end
 
@@ -39,31 +40,60 @@ function load_cmb_data(data_csv::AbstractString, cov_csv::AbstractString;
 
     mask = (dfD.ell .>= ell_min) .& (dfD.ell .<= ell_max)
     ell = collect(Int.(dfD.ell[mask]))
-    yTT = Float64.(dfD[mask, TTcol])
+
+    spectra = Dict{Symbol,Vector{Float64}}()
+    block_ranges = Dict{Symbol,UnitRange{Int}}()
+    data_chunks = Vector{Float64}()
+    start_idx = 1
+    for block in blocks
+        col = block === :TT ? (hasproperty(dfD, :TT) ? :TT : :DellTT) :
+              block === :TE ? (hasproperty(dfD, :TE) ? :TE : :DellTE) :
+              block === :EE ? (hasproperty(dfD, :EE) ? :EE : :DellEE) : block
+        @assert hasproperty(dfD, col) "Column $(col) not found in CMB data file"
+        vals = Float64.(dfD[mask, col])
+        spectra[block] = vals
+        push!(data_chunks, vals...)
+        stop_idx = start_idx + length(vals) - 1
+        block_ranges[block] = start_idx:stop_idx
+        start_idx = stop_idx + 1
+    end
+
+    vec = collect(data_chunks)
 
     dfC = CSV.read(cov_csv, DataFrame; delim=',', ignorerepeated=true, header=false)
     Cov = _df_to_float_matrix(dfC)
 
-    Ndata = length(yTT)
+    Ndata = length(vec)
     if size(Cov,1) != Ndata || size(Cov,2) != Ndata
-        @warn "Covariance size $(size(Cov)) doesn't match data length $Ndata; cropping to top-left."
-        N = min(Ndata, min(size(Cov,1), size(Cov,2)))
-        ell = ell[1:N]
-        yTT = yTT[1:N]
-        Cov = Symmetric(Matrix(Cov)[1:N, 1:N])
+        @warn "Covariance size $(size(Cov)) doesn't match data length $Ndata; using diagonal approximation."
+        Cov = Symmetric(Diagonal(fill(1.0, Ndata)))
     end
 
-    return CMBData(name=name, ell=ell, vec=yTT, Cov=Cov, blocks=blocks, as_Dell=as_Dell)
+    return CMBData(name=name, ell=ell, vec=vec, Cov=Cov,
+                   blocks=blocks, block_ranges=block_ranges, as_Dell=as_Dell)
 end
 
 function align_data_to_ell!(cmb::CMBData, ell_target::Vector{Int})
     pos = Dict(l => i for (i,l) in enumerate(cmb.ell))
     idx = [pos[l] for l in ell_target if haskey(pos,l)]
     @assert !isempty(idx) "Aucun ℓ commun entre data et émulateur."
-    cmb.ell = cmb.ell[idx]
-    cmb.vec = cmb.vec[idx]
+
+    total_idx = Int[]
+    new_ranges = Dict{Symbol,UnitRange{Int}}()
+    for block in cmb.blocks
+        block_range = cmb.block_ranges[block]
+        block_idx = [block_range.start - 1 + i for i in idx]
+        start_idx = length(total_idx) + 1
+        append!(total_idx, block_idx)
+        stop_idx = length(total_idx)
+        new_ranges[block] = start_idx:stop_idx
+    end
+
+    cmb.vec = cmb.vec[total_idx]
     cov = Matrix(cmb.Cov)
-    cmb.Cov = Symmetric(cov[idx, idx])
+    cmb.Cov = Symmetric(cov[total_idx, total_idx])
+    cmb.ell = ell_target
+    cmb.block_ranges = new_ranges
     return cmb
 end
 
