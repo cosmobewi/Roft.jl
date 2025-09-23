@@ -89,11 +89,21 @@ end
             println(io, "0.3, 75.0, 3.0")
             println(io, "0.1, 70.0, 2.0")
         end
-        obs = Roft.load_cccov(data_dir=tmpdir, files=[basename(file)])
+        obs = Roft.load_cccov(data_dir=tmpdir, files=[basename(file)], include_systematics=false)
         @test obs isa Roft.CCCov.CCObs
         @test obs.z ≈ [0.1, 0.3]
         @test obs.H ≈ [70.0, 75.0]
         @test diag(Matrix(obs.Cov)) ≈ [4.0, 9.0]
+
+        mm20 = joinpath(tmpdir, "data_MM20.dat")
+        open(mm20, "w") do io
+            println(io, "# z IMF stlib mod mod_ooo")
+            println(io, "0.0 1.0 2.0 3.0 4.0")
+            println(io, "1.0 1.0 2.0 3.0 4.0")
+        end
+        obs_sys = Roft.load_cccov(data_dir=tmpdir, files=[basename(file)])
+        @test obs_sys isa Roft.CCCov.CCObs
+        @test obs_sys.Cov[1,2] > 0
     end
 
     @testset "H0LiCOWAdapter" begin

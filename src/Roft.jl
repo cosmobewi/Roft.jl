@@ -41,14 +41,16 @@ using .CMBViaCapse: chi2_cmb_soft_at
 
 # Adapters
 include("adapters/PantheonPlusAdapter.jl")
-include("adapters/CCCovAdapter.jl")
+include("adapters/CCcovAdapter.jl")
 include("adapters/H0LiCOWAdapter.jl")
 
 using .PantheonPlusAdapter: load_pantheonplus, load_pantheon_2018
-using .CCCovAdapter: load_cccov
+using .CCcovAdapter: load_cccov
+
+const CCCovAdapter = CCcovAdapter
 using .H0LiCOWAdapter: load_h0licow_cosmo_chains, meff_from_meta
 
-export PantheonPlusAdapter, CCCovAdapter, H0LiCOWAdapter
+export PantheonPlusAdapter, CCcovAdapter, CCCovAdapter, H0LiCOWAdapter
 export load_pantheonplus, load_pantheon_2018, load_cccov,
        load_h0licow_cosmo_chains, meff_from_meta
 
