@@ -4,7 +4,7 @@ export load_cccov
 using LinearAlgebra: Symmetric, Diagonal
 using CSV, DataFrames
 
-using ..CCCov: CCObs
+using ..TimeDomain: CCObs
 
 const DEFAULT_CCCOV_DIR = "/opt/CCcovariance/data"
 const MM20_FILENAME = "data_MM20.dat"

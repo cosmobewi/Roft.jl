@@ -4,7 +4,7 @@ export load_h0licow_cosmo_chains, meff_from_meta
 using CSV, DataFrames
 using Logging: @info
 
-using ..H0LiCOWCosmoChains: TDH0GlobalObs
+using ..TimeDomain: TDH0GlobalObs
 
 @inline function _mean_std(x::AbstractVector{<:Real})
     n = length(x)

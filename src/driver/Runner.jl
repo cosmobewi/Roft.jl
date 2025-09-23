@@ -3,9 +3,7 @@ export chi2_total, Packs
 
 using ..Backgrounds: FlatLCDM, E_LCDM
 using ..LikelihoodsCore
-using ..CC
-using ..TD
-using ..CephSN
+using ..TimeDomain
 import ..ROFTSoft          # ← rend le sous-module visible ici
 import ..PantheonPlus
 
@@ -13,9 +11,9 @@ const C_KMS = 299_792.458  # km/s (déclaré au niveau module)
 const ROFTParamsType = ROFTSoft.ROFTParams  # alias de type pratique
 
 Base.@kwdef struct Packs
-    cc::Union{Nothing,CC.CCData} = nothing
-    td::Union{Nothing,TD.TDData} = nothing
-    ceph::Union{Nothing,CephSN.CephSNData} = nothing
+    cc::Union{Nothing,TimeDomain.CCData} = nothing
+    td::Union{Nothing,TimeDomain.TDData} = nothing
+    ceph::Union{Nothing,TimeDomain.CephSNData} = nothing
     sn::Union{Nothing,PantheonPlus.SNData} = nothing
     cmb_data::Union{Nothing,Vector{Float64}} = nothing
     cmb_cov::Union{Nothing,AbstractMatrix{Float64}} = nothing
@@ -47,13 +45,13 @@ function chi2_total(D::Packs; bg::FlatLCDM, roft::ROFTParamsType, c_mu::Float64=
 
     # Probes “temps” — α agit ici seulement
     if D.cc !== nothing
-        χ2 += CC.chi2_cc(D.cc; bg=bg, roft=roft)
+        χ2 += TimeDomain.chi2_cc(D.cc; bg=bg, roft=roft)
     end
     if D.td !== nothing
-        χ2 += TD.chi2_td(D.td; bg=bg, roft=roft)
+        χ2 += TimeDomain.chi2_td(D.td; bg=bg, roft=roft)
     end
     if D.ceph !== nothing
-        χ2 += CephSN.chi2_cephsn(D.ceph; bg=bg, roft=roft, c_mu=c_mu)
+        χ2 += TimeDomain.chi2_cephsn(D.ceph; bg=bg, roft=roft, c_mu=c_mu)
     end
 
     return χ2
