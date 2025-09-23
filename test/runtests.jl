@@ -171,42 +171,48 @@ end
         ℓ = [10, 20]
         resp = [1.0 0.0 0.0 0.0 0.0 0.0;
                 0.0 1.0 0.0 0.0 0.0 0.0]
-        st = Roft.CapseAdapter.CapseState(Capse.DummyEmulator(ℓ, resp), ℓ, [:ωb, :ωc, :h, :ns, :τ, :As])
-        @test st.ℓ == [10, 20]
-        @test st.param_order == [:ωb, :ωc, :h, :ns, :τ, :As]
+        st_tt = Roft.CapseAdapter.CapseState(Capse.DummyEmulator(ℓ, resp), ℓ, [:ωb, :ωc, :h, :ns, :τ, :As])
+        st_te = Roft.CapseAdapter.CapseState(Capse.DummyEmulator(ℓ, resp .* 0.5), ℓ, [:ωb, :ωc, :h, :ns, :τ, :As])
+        states = Dict(:TT => st_tt, :TE => st_te)
+        @test states[:TT].ℓ == [10, 20]
+        @test states[:TE].param_order == [:ωb, :ωc, :h, :ns, :τ, :As]
 
         p = Roft.CapseAdapter.CapseCMB(Obh2=0.022, Och2=0.12, H0=70.0, ns=0.96, As=2.1e-9, tau=0.054)
-        vec = Roft.CapseAdapter._param_vector(p, st.param_order)
+        vec = Roft.CapseAdapter._param_vector(p, st_tt.param_order)
         @test vec ≈ [0.022, 0.12, 0.7, 0.96, 0.054, 2.1e-9]
 
-        th = Roft.CapseAdapter.predict_cmb(p, st)
+        th = Roft.CapseAdapter.predict_cmb(p, st_tt)
         @test th ≈ [0.022, 0.12]
 
         data_vec = th .+ [0.5, -1.0]
         cov = Symmetric(Matrix{Float64}(I, 2, 2))
-        @test Roft.CapseAdapter.cmb_chi2(data_vec, cov, p, st) ≈ 0.5^2 + (-1.0)^2
+        @test Roft.CapseAdapter.cmb_chi2(data_vec, cov, p, st_tt) ≈ 0.5^2 + (-1.0)^2
 
         tmp = mktempdir()
         data_csv = joinpath(tmp, "cmb.csv")
         cov_csv  = joinpath(tmp, "cmb_cov.csv")
         open(data_csv, "w") do io
-            println(io, "ell,TT")
-            println(io, "10,100.0")
-            println(io, "20,110.0")
+            println(io, "ell,TT,TE")
+            println(io, "10,100.0,8.0")
+            println(io, "20,110.0,9.0")
         end
         open(cov_csv, "w") do io
-            println(io, "1.0,0.0")
-            println(io, "0.0,1.0")
+            println(io, "1.0,0.0,0.0,0.0")
+            println(io, "0.0,1.0,0.0,0.0")
+            println(io, "0.0,0.0,1.0,0.0")
+            println(io, "0.0,0.0,0.0,1.0")
         end
-        cmb_data = Roft.load_cmb_data(data_csv, cov_csv; ell_min=5, ell_max=30)
+        cmb_data = Roft.load_cmb_data(data_csv, cov_csv; ell_min=5, ell_max=30, blocks=[:TT, :TE])
         @test cmb_data.ell == [10, 20]
-        @test cmb_data.blocks == [:TT]
+        @test cmb_data.blocks == [:TT, :TE]
+        @test cmb_data.block_ranges[:TT] == 1:2
+        @test cmb_data.block_ranges[:TE] == 3:4
 
-        states = Dict(:TT => st)
-        model = Roft.CMBViaCapse.CapseCMBModel(blocks=[:TT], states=states, ell=ℓ)
+        model = Roft.CMBViaCapse.CapseCMBModel(blocks=[:TT, :TE], states=states, ell=ℓ)
         Roft.align_data_to_ell!(cmb_data, model.ell)
         @test model.ell == [10, 20]
-        @test cmb_data.ell == [10, 20]
+        @test cmb_data.block_ranges[:TT] == 1:2
+        @test cmb_data.block_ranges[:TE] == 3:4
 
         parms = Dict("CAPSE_NS"=>"0.96", "CAPSE_AS"=>"2.1e-9", "CAPSE_TAU"=>"0.054",
                      "CAPSE_OBH2"=>"0.022", "CAPSE_ONUH2"=>"0.00064")
@@ -216,12 +222,12 @@ end
             ENV[k] = v
         end
 
-        cmb_data.vec = th .+ [0.2, -0.3]
-        cmb_data.Cov = Symmetric(Matrix{Float64}(I, 2, 2))
+        cmb_data.vec = vcat(th .+ [0.2, -0.3], (0.5 .* th) .+ [0.1, -0.2])
+        cmb_data.Cov = Symmetric(Matrix{Float64}(I, 4, 4))
         H0 = 70.0
         Om0 = 0.3
         chi2 = Roft.CMBViaCapse.chi2_cmb_soft_at(H0, Om0, cmb_data, model)
-        @test isapprox(chi2, 0.2^2 + (-0.3)^2; atol=5e-3)
+        @test isapprox(chi2, 0.2^2 + (-0.3)^2 + 0.1^2 + (-0.2)^2; atol=5e-3)
 
         for (k, val) in saved
             if val === nothing
