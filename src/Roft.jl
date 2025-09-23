@@ -11,6 +11,11 @@ include("backgrounds/FlatLCDM.jl")
 using .Backgrounds: FlatLCDM, H_of_z, E_LCDM
 export Backgrounds
 
+# Config
+include("config/CapseEnv.jl")
+using .CapseEnv: NuisanceParams, read_nuisance_params
+export CapseEnv
+
 # Core ROFT (soft)
 include("roft/ROFTSoft.jl")
 using .ROFTSoft: ROFTParams, delta_g_time, modify_CC, modify_TD, delta_mu_host

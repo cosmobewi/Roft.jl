@@ -131,6 +131,32 @@ end
         @test M > 0
     end
 
+    @testset "CapseEnv" begin
+        keys_vals = Dict(
+            "CAPSE_NS" => "0.97",
+            "CAPSE_AS" => "2.5e-9",
+            "CAPSE_TAU" => "0.06",
+            "CAPSE_OBH2" => "0.023",
+            "CAPSE_ONUH2" => "0.001"
+        )
+        saved = Dict{String,Union{Nothing,String}}()
+        for (k,v) in keys_vals
+            saved[k] = get(ENV, k, nothing)
+            ENV[k] = v
+        end
+
+        params = Roft.CapseEnv.read_nuisance_params()
+        @test params.ns ≈ 0.97
+        @test params.As ≈ 2.5e-9
+        @test params.tau ≈ 0.06
+        @test params.Obh2 ≈ 0.023
+        @test params.Onuh2 ≈ 0.001
+
+        for (k,val) in saved
+            val === nothing ? delete!(ENV, k) : (ENV[k] = val)
+        end
+    end
+
     @testset "CapseAdapter" begin
         import Capse
         @eval Capse begin

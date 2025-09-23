@@ -4,6 +4,7 @@ export CapseCMBModel, make_cmb_model_from_env, chi2_cmb_soft_at
 using LinearAlgebra
 using ..CapseAdapter
 using ..CMBAdapter
+using ..CapseEnv
 
 Base.@kwdef struct CapseCMBModel
     blocks::Vector{Symbol}
@@ -29,14 +30,11 @@ function chi2_cmb_soft_at(H0::Real, Om0::Real, cmb::CMBAdapter.CMBData, model::C
     stTT = get(model.states, :TT, nothing)
     @assert stTT !== nothing "Capse model requires a TT emulator"
 
-    ns   = parse(Float64, get(ENV, "CAPSE_NS", "0.965"))
-    As   = parse(Float64, get(ENV, "CAPSE_AS", "2.1e-9"))
-    tau  = parse(Float64, get(ENV, "CAPSE_TAU", "0.054"))
-    Obh2 = parse(Float64, get(ENV, "CAPSE_OBH2", "0.02237"))
-    Onuh2= parse(Float64, get(ENV, "CAPSE_ONUH2", "0.00064"))
-    Och2 = Om0 * (H0/100)^2 - Obh2 - Onuh2
+    nuis = CapseEnv.read_nuisance_params()
+    Och2 = Om0 * (H0/100)^2 - nuis.Obh2 - nuis.Onuh2
 
-    p = CapseAdapter.CapseCMB(Obh2=Obh2, Och2=Och2, H0=H0, ns=ns, As=As, tau=tau)
+    p = CapseAdapter.CapseCMB(Obh2=nuis.Obh2, Och2=Och2, H0=H0,
+                              ns=nuis.ns, As=nuis.As, tau=nuis.tau)
     thTT = CapseAdapter.predict_cmb(p, stTT)
 
     if model.as_Dell_theory != cmb.as_Dell
