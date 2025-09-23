@@ -18,8 +18,10 @@ export ROFTSoft
 
 # Adapters (Capse)
 include("adapters/CapseAdapter.jl")
+include("adapters/CMBAdapter.jl")
 using .CapseAdapter: CapseCMB, cmb_chi2
-export CapseAdapter
+using .CMBAdapter: CMBData, load_cmb_data, align_data_to_ell!
+export CapseAdapter, CMBAdapter
 
 # Likelihoods
 include("likelihoods/Core.jl")
@@ -31,7 +33,7 @@ using .LikelihoodsCore: chi2_gaussian, aic, bic
 using .TimeDomain: CCData, TDData, CephSNData, TDH0GlobalObs, CCObs,
                     chi2_cc, chi2_td, chi2_cephsn, chi2_td_h0_global, chi2_cccov
 using .PantheonPlus: chi2_sn_profiledM
-using .CMBViaCapse: chi2_cmb_soft_at
+using .CMBViaCapse: CapseCMBModel, chi2_cmb_soft_at
 
 const CC = TimeDomain
 const TD = TimeDomain
@@ -50,8 +52,8 @@ using .CCcovAdapter: load_cccov
 const CCCovAdapter = CCcovAdapter
 using .H0LiCOWAdapter: load_h0licow_cosmo_chains, meff_from_meta
 
-export PantheonPlusAdapter, CCcovAdapter, CCCovAdapter, H0LiCOWAdapter
-export load_pantheonplus, load_pantheon_2018, load_cccov,
+export PantheonPlusAdapter, CCcovAdapter, CCCovAdapter, H0LiCOWAdapter, CMBAdapter
+export load_pantheonplus, load_pantheon_2018, load_cccov, load_cmb_data, align_data_to_ell!,
        load_h0licow_cosmo_chains, meff_from_meta
 
 export CC, TD, CephSN, H0LiCOWCosmoChains, CCCov

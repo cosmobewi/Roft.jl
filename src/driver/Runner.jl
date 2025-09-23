@@ -4,6 +4,8 @@ export chi2_total, Packs
 using ..Backgrounds: FlatLCDM, E_LCDM
 using ..LikelihoodsCore
 using ..TimeDomain
+using ..CMBAdapter
+using ..CMBViaCapse
 import ..ROFTSoft          # ← rend le sous-module visible ici
 import ..PantheonPlus
 
@@ -15,9 +17,8 @@ Base.@kwdef struct Packs
     td::Union{Nothing,TimeDomain.TDData} = nothing
     ceph::Union{Nothing,TimeDomain.CephSNData} = nothing
     sn::Union{Nothing,PantheonPlus.SNData} = nothing
-    cmb_data::Union{Nothing,Vector{Float64}} = nothing
-    cmb_cov::Union{Nothing,AbstractMatrix{Float64}} = nothing
-    cmb_params::Any = nothing
+    cmb::Union{Nothing,CMBAdapter.CMBData} = nothing
+    cmb_model::Union{Nothing,CMBViaCapse.CapseCMBModel} = nothing
     bao_model::Function = ()->(Float64[])
     bao_data::Union{Nothing,Vector{Float64}} = nothing
     bao_cov::Union{Nothing,AbstractMatrix{Float64}} = nothing
@@ -27,7 +28,9 @@ end
 function chi2_total(D::Packs; bg::FlatLCDM, roft::ROFTParamsType, c_mu::Float64=1.0)
     χ2 = 0.0
 
-    # (CMB/BAO éventuels ici — pas d’α en soft)
+    if D.cmb !== nothing && D.cmb_model !== nothing
+        χ2 += CMBViaCapse.chi2_cmb_soft_at(bg.H0, bg.Om0, D.cmb, D.cmb_model)
+    end
 
     # SN (Pantheon/Pantheon+) — pas d’α en soft
     if D.sn !== nothing

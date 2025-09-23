@@ -172,13 +172,13 @@ end
             println(io, "1.0,0.0")
             println(io, "0.0,1.0")
         end
-        cmb_data = Roft.CMBViaCapse.load_cmb_data(data_csv, cov_csv; ell_min=5, ell_max=30)
+        cmb_data = Roft.load_cmb_data(data_csv, cov_csv; ell_min=5, ell_max=30)
         @test cmb_data.ell == [10, 20]
         @test cmb_data.blocks == [:TT]
 
-        model = Roft.CMBViaCapse.CapseCMBModel(blocks=[:TT], as_Dell_theory=true,
-                                               wTT=st, wTE=nothing, wEE=nothing, ell=ℓ)
-        Roft.CMBViaCapse.align_data_to_ell!(cmb_data, model.ell)
+        states = Dict(:TT => st)
+        model = Roft.CMBViaCapse.CapseCMBModel(blocks=[:TT], states=states, ell=ℓ)
+        Roft.align_data_to_ell!(cmb_data, model.ell)
         @test model.ell == [10, 20]
         @test cmb_data.ell == [10, 20]
 
