@@ -2,6 +2,7 @@ module CMBViaCapse
 export CapseCMBModel, make_cmb_model_from_env, chi2_cmb_soft_at
 
 using LinearAlgebra
+using Base: Set
 using ..CapseAdapter
 using ..CMBAdapter
 using ..CapseEnv
@@ -11,19 +12,29 @@ Base.@kwdef struct CapseCMBModel
     as_Dell_theory::Bool = true
     states::Dict{Symbol,CapseAdapter.CapseState}
     ell::Vector{Int}
+    keep_indices::Dict{Symbol,Vector{Int}}
 end
 
 function make_cmb_model_from_env(cmb::CMBAdapter.CMBData; blocks::Vector{Symbol}=cmb.blocks)
     weights_dir = get(ENV, "CAPSE_WEIGHTS_DIR", "")
     @assert isdir(weights_dir) "Set CAPSE_WEIGHTS_DIR to trained_emu directory"
 
-    states, ℓ = CapseAdapter.load_capse_root_multi(weights_dir; blocks=blocks)
+    states, ℓ_full = CapseAdapter.load_capse_root_multi(weights_dir; blocks=blocks)
     available_blocks = [b for b in blocks if haskey(states, b)]
-    CMBAdapter.align_data_to_ell!(cmb, ℓ)
+
+    ell_set = Set(cmb.ell)
+    keep_idx = [i for (i,ℓval) in enumerate(ℓ_full) if ℓval in ell_set]
+    @assert !isempty(keep_idx) "Aucun ℓ commun entre les données CMB et les émulateurs Capse."
+    ℓ_common = ℓ_full[keep_idx]
+
+    CMBAdapter.align_data_to_ell!(cmb, ℓ_common)
+
+    keep_dict = Dict(block => keep_idx for block in available_blocks)
 
     return CapseCMBModel(blocks=available_blocks,
                          states=states,
-                         ell=ℓ)
+                         ell=ℓ_common,
+                         keep_indices=keep_dict)
 end
 
 function chi2_cmb_soft_at(H0::Real, Om0::Real, cmb::CMBAdapter.CMBData, model::CapseCMBModel)
@@ -37,10 +48,12 @@ function chi2_cmb_soft_at(H0::Real, Om0::Real, cmb::CMBAdapter.CMBData, model::C
     for block in model.blocks
         st = get(model.states, block, nothing)
         @assert st !== nothing "No Capse emulator found for block $(block)"
-        spec = CapseAdapter.predict_cmb(p, st)
+        spec_full = CapseAdapter.predict_cmb(p, st)
+        keep_idx = get(model.keep_indices, block, collect(eachindex(spec_full)))
+        spec = spec_full[keep_idx]
         if model.as_Dell_theory != cmb.as_Dell
-            ℓ = model.ell
-            fac = @. (ℓ * (ℓ + 1)) / (2pi)
+            ℓvals = model.ell[keep_idx]
+            fac = @. (ℓvals * (ℓvals + 1)) / (2pi)
             if !model.as_Dell_theory && cmb.as_Dell
                 spec = fac .* spec
             elseif model.as_Dell_theory && !cmb.as_Dell

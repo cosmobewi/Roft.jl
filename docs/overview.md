@@ -35,7 +35,7 @@
 ## 4. Capse / CMBViaCapse
 
 `src/likelihoods/CMBViaCapse.jl`
-- `CapseCMBModel(blocks, states, ell; as_Dell_theory=true)` : support multi-blocs.
+- `CapseCMBModel(blocks, states, ell, keep_indices; as_Dell_theory=true)` : support multi-blocs.
 - `make_cmb_model_from_env(cmb; blocks=...)` : charge les émulateurs (via `CAPSE_WEIGHTS_DIR`) et aligne les données.
 - `chi2_cmb_soft_at(H0, Om0, cmb, model)` : calcule le χ² complet (conversion Cℓ↔Dℓ, somme sur les blocs).
 

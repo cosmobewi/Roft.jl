@@ -58,7 +58,7 @@ model = Roft.CMBViaCapse.make_cmb_model_from_env(cmb; blocks=[:TT, :TE])
 Cette fonction :
 - charge automatiquement les émulateurs présents pour les blocs demandés (en ignorant ceux manquants) ;
 - aligne `cmb` sur la grille ℓ de l’émulateur ;
-- retourne un `CapseCMBModel(blocks=..., states=..., ell=...)`.
+- retourne un `CapseCMBModel(blocks=..., states=..., ell=..., keep_indices=...)`
 
 ### Multi-blocs
 Le modèle gère plusieurs blocs (TT/TE/EE/PP). Chaque bloc est évalué via son `CapseState` et concaténé dans un vecteur théorie, puis comparé aux données.

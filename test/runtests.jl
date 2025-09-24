@@ -208,7 +208,8 @@ end
         @test cmb_data.block_ranges[:TT] == 1:2
         @test cmb_data.block_ranges[:TE] == 3:4
 
-        model = Roft.CMBViaCapse.CapseCMBModel(blocks=[:TT, :TE], states=states, ell=ℓ)
+        keep = Dict(:TT => collect(1:length(ℓ)), :TE => collect(1:length(ℓ)))
+        model = Roft.CMBViaCapse.CapseCMBModel(blocks=[:TT, :TE], states=states, ell=ℓ, keep_indices=keep)
         Roft.align_data_to_ell!(cmb_data, model.ell)
         @test model.ell == [10, 20]
         @test cmb_data.block_ranges[:TT] == 1:2
@@ -236,6 +237,82 @@ end
                 ENV[k] = val
             end
         end
+
+        py_tmp = joinpath(tmp, "postprocessing.py")
+        open(py_tmp, "w") do io
+            println(io, "import jax.numpy as jnp")
+            println(io, "def postprocessing(input, Cl):")
+            println(io, "    return Cl * jnp.exp(input[0]-3)")
+        end
+        jl_tmp = joinpath(tmp, "postprocessing.jl")
+        Roft.CapseAdapter.synthesize_postprocessing(py_tmp, jl_tmp)
+        mod = Module()
+        Base.include(mod, jl_tmp)
+        post = getfield(mod, :postprocessing)
+        vals = post([0.0, 1.0], [1.0, 2.0])
+        @test vals ≈ [exp(-3), 2exp(-3)]
+        vals3 = post([0.0, 1.0], [1.0, 2.0], nothing)
+        @test vals3 ≈ vals
+
+        jl_min = joinpath(tmp, "post_min.jl")
+        open(jl_min, "w") do io
+            println(io, "function postprocessing(input, Cl)")
+            println(io, "    return Cl .* (1 .+ 0 .* input[1])")
+            println(io, "end")
+        end
+        Roft.CapseAdapter.ensure_postprocessing_methods!(jl_min)
+        mod2 = Module()
+        Base.include(mod2, jl_min)
+        post2 = getfield(mod2, :postprocessing)
+        @test post2([0.0, 1.0], [2.0]) ≈ [2.0]
+        @test post2([0.0, 1.0], [2.0], nothing) ≈ [2.0]
+
+        nn_json = joinpath(tmp, "nn_setup.json")
+        open(nn_json, "w") do io
+            println(io, "{\"parameters\": \"ln10As, ns, H0, ωb, ωc, τ\"}")
+        end
+
+        order_detected = Roft.CapseAdapter.compute_param_order(tmp, Symbol[:ωb,:ωc,:h,:ns,:τ,:As])
+        @test order_detected == Symbol[:ln10As, :ns, :H0, :ωb, :ωc, :τ]
+
+        pvals = Roft.CapseAdapter._param_vector(p, order_detected)
+        ln10As = log(1e10 * 2.1e-9)
+        @test pvals ≈ [ln10As, 0.96, 70.0, 0.022, 0.12, 0.054]
+    end
+
+    @testset "PlanckLiteAdapter" begin
+        tmpdir = mktempdir()
+        data_path = joinpath(tmpdir, "cl_cmb_plik_v22.dat")
+        cov_path = joinpath(tmpdir, "c_matrix_plik_v22.dat")
+
+        open(data_path, "w") do io
+            println(io, "# ell DellTT")
+            println(io, "30 1000.0")
+            println(io, "31 1005.0")
+            println(io, "32 1010.0")
+        end
+
+        open(cov_path, "w") do io
+            println(io, "1.0 0.1 0.0")
+            println(io, "0.1 1.1 0.05")
+            println(io, "0.0 0.05 1.2")
+        end
+
+        cmb = Roft.load_pliklite(tmpdir; ell_min=30, ell_max=32, name="TestPlikLite")
+        @test cmb isa Roft.CMBAdapter.CMBData
+        @test cmb.name == "TestPlikLite"
+        @test cmb.blocks == [:TT]
+        @test cmb.block_ranges[:TT] == 1:3
+        @test cmb.ell == [30, 31, 32]
+        fac = (cmb.ell .* (cmb.ell .+ 1)) ./ (2π)
+        @test cmb.vec ≈ fac .* [1000.0, 1005.0, 1010.0]
+        @test size(cmb.Cov) == (3, 3)
+        cov_expected = [1.0 0.1 0.0; 0.1 1.1 0.05; 0.0 0.05 1.2]
+        cov_expected .= cov_expected .* (fac * fac')
+        @test isapprox(Matrix(cmb.Cov), cov_expected; atol=1e-9)
+
+        cmb_cl = Roft.load_pliklite(tmpdir; ell_min=30, ell_max=32, as_Dell=false, name="TestPlikLiteCl")
+        @test cmb_cl.vec ≈ [1000.0, 1005.0, 1010.0]
     end
 end
 

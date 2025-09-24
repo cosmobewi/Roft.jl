@@ -24,9 +24,11 @@ export ROFTSoft
 # Adapters (Capse)
 include("adapters/CapseAdapter.jl")
 include("adapters/CMBAdapter.jl")
+include("adapters/PlanckLiteAdapter.jl")
 using .CapseAdapter: CapseCMB, cmb_chi2
 using .CMBAdapter: CMBData, load_cmb_data, align_data_to_ell!
-export CapseAdapter, CMBAdapter
+using .PlanckLiteAdapter: load_pliklite
+export CapseAdapter, CMBAdapter, PlanckLiteAdapter
 
 # Likelihoods
 include("likelihoods/Core.jl")
@@ -57,8 +59,8 @@ using .CCcovAdapter: load_cccov
 const CCCovAdapter = CCcovAdapter
 using .H0LiCOWAdapter: load_h0licow_cosmo_chains, meff_from_meta
 
-export PantheonPlusAdapter, CCcovAdapter, CCCovAdapter, H0LiCOWAdapter, CMBAdapter
-export load_pantheonplus, load_pantheon_2018, load_cccov, load_cmb_data, align_data_to_ell!,
+export PantheonPlusAdapter, CCcovAdapter, CCCovAdapter, H0LiCOWAdapter, CMBAdapter, PlanckLiteAdapter
+export load_pantheonplus, load_pantheon_2018, load_cccov, load_cmb_data, align_data_to_ell!, load_pliklite,
        load_h0licow_cosmo_chains, meff_from_meta
 
 export CC, TD, CephSN, H0LiCOWCosmoChains, CCCov

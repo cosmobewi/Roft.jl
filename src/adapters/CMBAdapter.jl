@@ -74,8 +74,12 @@ function load_cmb_data(data_csv::AbstractString, cov_csv::AbstractString;
 end
 
 function align_data_to_ell!(cmb::CMBData, ell_target::Vector{Int})
-    pos = Dict(l => i for (i,l) in enumerate(cmb.ell))
-    idx = [pos[l] for l in ell_target if haskey(pos,l)]
+    pos = Dict{Int,Int}()
+    for (i, l) in enumerate(cmb.ell)
+        haskey(pos, l) || (pos[l] = i)
+    end
+    filtered_target = Int[l for l in ell_target if haskey(pos, l)]
+    idx = [pos[l] for l in filtered_target]
     @assert !isempty(idx) "Aucun ℓ commun entre data et émulateur."
 
     total_idx = Int[]
@@ -92,7 +96,7 @@ function align_data_to_ell!(cmb::CMBData, ell_target::Vector{Int})
     cmb.vec = cmb.vec[total_idx]
     cov = Matrix(cmb.Cov)
     cmb.Cov = Symmetric(cov[total_idx, total_idx])
-    cmb.ell = ell_target
+    cmb.ell = filtered_target
     cmb.block_ranges = new_ranges
     return cmb
 end
